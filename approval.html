@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invite User via ArcGIS OAuth</title>
+  <!-- Load the ArcGIS API for JavaScript -->
+  <script src="https://js.arcgis.com/4.26/"></script>
+  <script>
+    // Use the ArcGIS API's AMD loader to bring in OAuth and IdentityManager modules.
+    require(["esri/identity/OAuthInfo", "esri/identity/IdentityManager"], function(OAuthInfo, esriId) {
+      
+      // Configure OAuth information. Replace 'YOUR_APP_ID' with your application's client ID.
+      var info = new OAuthInfo({
+        appId: "zqp645HsoVg1KwjM",
+        popup: true, // Use a popup for sign-in.
+        portalUrl: "https://www.arcgis.com"  // Change if you're using a different portal.
+      });
+      esriId.registerOAuthInfos([info]);
+
+      // This function will be called when the user clicks the button.
+      window.sendInvite = function() {
+        // Retrieve credentials. This triggers the OAuth sign-in flow if the user is not signed in.
+        esriId.getCredential(info.portalUrl + "/sharing/rest")
+          .then(function(credential) {
+            var token = credential.token;
+            
+            // URL for inviting a user.
+            var inviteUrl = "https://cap-gis.maps.arcgis.com/sharing/rest/portals/self/invite";
+            
+            // Invitation payload.
+            var invitation = {
+              invitations: [{
+                firstname: "Gannon",
+                lastname: "English",
+                email: "addison.english@flwg.cap.gov",
+                role: "org_publisher",
+                userLicenseTypeId: "creatorLicenseId",
+                provider: "arcgis",
+                userType: "namedUser"
+              }]
+            };
+            
+            // Build URL-encoded parameters.
+            var params = new URLSearchParams();
+            params.append("invitationList", JSON.stringify(invitation));
+            params.append("message", "Welcome to the organization!");
+            params.append("f", "json");
+            params.append("token", token);
+            
+            // Send the POST request using fetch.
+            fetch(inviteUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+              },
+              body: params.toString()
+            })
+            .then(function(response) { 
+              return response.json(); 
+            })
+            .then(function(data) {
+              console.log("Invite response:", data);
+              alert("Invite response: " + JSON.stringify(data));
+            })
+            .catch(function(err) {
+              console.error("Error sending invite:", err);
+              alert("Error sending invite: " + err);
+            });
+          })
+          .catch(function(err) {
+            console.error("Error retrieving credential:", err);
+            alert("Error retrieving credential: " + err);
+          });
+      };
+    });
+  </script>
+</head>
+<body>
+  <h1>Invite a User via OAuth</h1>
+  <!-- Clicking this button triggers the OAuth sign-in (if needed) and then sends the invite. -->
+  <button onclick="sendInvite()">Sign In & Send Invite</button>
+</body>
+</html>
