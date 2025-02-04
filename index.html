@@ -20,19 +20,27 @@
 
   <script>
     // === Configuration ===
-    // Replace with your ArcGIS OAuth client ID.
-    const CLIENT_ID = 'NdDfitFYbAyF6ETt';
-    // Use the current page as the redirect URI (ensure this URI is registered in your ArcGIS app)
+    const CLIENT_ID = 'NdDfitFYbAyF6ETt';  // Replace with your ArcGIS OAuth client ID.
+    // Use the current page's origin and pathname as the redirect URI (no query parameters).
     const REDIRECT_URI = window.location.origin + window.location.pathname;
-    // ArcGIS OAuth 2.0 authorization endpoint.
     const AUTHORIZATION_URL = 'https://www.arcgis.com/sharing/rest/oauth2/authorize';
 
     // === Helper Functions ===
 
-    // Parse URL query parameters into an object.
-    function getQueryParams() {
+    // Save the current query string in sessionStorage.
+    function storeInviteParams() {
+      sessionStorage.setItem("inviteParams", window.location.search);
+    }
+
+    // Retrieve invite parameters either from the URL or from sessionStorage.
+    function getInviteParams() {
+      let search = window.location.search;
+      if (!search || search.trim() === "") {
+        search = sessionStorage.getItem("inviteParams") || "";
+      }
       const params = {};
-      window.location.search.substr(1).split("&").forEach(function(item) {
+      if (search.startsWith("?")) search = search.substring(1);
+      search.split("&").forEach(function(item) {
         if (item) {
           const [key, value] = item.split("=");
           params[decodeURIComponent(key)] = decodeURIComponent(value);
@@ -61,7 +69,9 @@
 
     // Redirect the user to ArcGIS OAuth login.
     function redirectToOAuth() {
-      const oauthUrl = AUTHORIZATION_URL + 
+      // Store the invite query parameters before redirecting.
+      storeInviteParams();
+      const oauthUrl = AUTHORIZATION_URL +
                        '?client_id=' + encodeURIComponent(CLIENT_ID) +
                        '&response_type=token' +
                        '&redirect_uri=' + encodeURIComponent(REDIRECT_URI);
@@ -75,7 +85,7 @@
         firstname: inviteData.firstname,
         lastname: inviteData.lastname,
         email: inviteData.email,
-        // Use a default role; change if needed.
+        // Use a default role; adjust if needed or pass in via query parameters.
         role: inviteData.role || 'org_publisher',
         userLicenseTypeId: inviteData.userLicenseTypeId || "",
         provider: "arcgis",
@@ -107,12 +117,12 @@
         document.getElementById('login').style.display = 'block';
         return;
       }
-      // We have an access token.
+      // Access token available.
       const accessToken = hashParams.access_token;
-      removeHash(); // Clean up URL
+      removeHash(); // Clean up URL.
 
-      // Get invitation details from query parameters.
-      const params = getQueryParams();
+      // Retrieve invitation details (from URL or sessionStorage).
+      const params = getInviteParams();
       if (!params.firstname || !params.lastname || !params.email) {
         document.getElementById('error').innerText = 'Missing required user details (firstname, lastname, email) in URL parameters.';
         return;
