@@ -6,27 +6,25 @@
   <!-- Load the ArcGIS API for JavaScript -->
   <script src="https://js.arcgis.com/4.26/"></script>
   <script>
-    // Use the ArcGIS API's AMD loader to bring in OAuth and IdentityManager modules.
     require(["esri/identity/OAuthInfo", "esri/identity/IdentityManager"], function(OAuthInfo, esriId) {
-      
-      // Use a flag to prevent the flow from executing multiple times.
+
+      // Prevent duplicate execution (if needed)
       if (sessionStorage.getItem("invitationSent") === "true") {
         console.log("Invitation already sent. Exiting.");
         return;
       }
       
       // Configure OAuth information.
-      // Replace the appId with your registered ArcGIS application's client ID.
       var info = new OAuthInfo({
-        appId: "NdDfitFYbAyF6ETt", 
+        appId: "NdDfitFYbAyF6ETt",  // Replace with your ArcGIS app ID
         popup: true,
         portalUrl: "https://www.arcgis.com",
-        // Use the current page URL (without any hash) as the redirect URI.
+        // Use the current page URL (without hash) as the redirect URI.
         redirectUri: window.location.href.split("#")[0]
       });
       esriId.registerOAuthInfos([info]);
 
-      // Helper function: Extract query parameters from the URL.
+      // Helper function: Get query parameters from the URL.
       function getQueryParams() {
         var params = new URLSearchParams(window.location.search);
         return {
@@ -38,22 +36,22 @@
         };
       }
 
-      // Helper function: Extract an OAuth token from the URL hash, if present.
+      // Helper function: Extract token from the URL hash, if present.
       function getTokenFromHash() {
         if (window.location.hash && window.location.hash.indexOf("access_token") !== -1) {
-          var hash = window.location.hash.substr(1); // remove the leading '#'
+          var hash = window.location.hash.substr(1); // Remove the leading '#'
           var params = new URLSearchParams(hash);
           return params.get("access_token");
         }
         return null;
       }
 
-      // Function to send the invitation using the provided token.
+      // Function to send the invitation.
       function sendInvitation(token) {
         var inviteUrl = "https://cap-gis.maps.arcgis.com/sharing/rest/portals/self/invite";
         var userParams = getQueryParams();
 
-        // Build the invitation payload using the passed query parameters.
+        // Build the invitation payload.
         var invitation = {
           invitations: [{
             firstname: userParams.firstname || "DefaultFirstName",
@@ -66,6 +64,8 @@
           }]
         };
 
+        console.log("Invitation payload:", invitation);
+
         // Build URL-encoded parameters.
         var params = new URLSearchParams();
         params.append("invitationList", JSON.stringify(invitation));
@@ -73,26 +73,33 @@
         params.append("f", "json");
         params.append("token", token);
 
-        // Send the invitation using a POST request.
+        console.log("Sending invitation to:", inviteUrl);
+        console.log("POST body:", params.toString());
+
+        // Send the POST request.
         fetch(inviteUrl, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: params.toString()
         })
-        .then(function(response) { 
+        .then(function(response) {
           return response.json();
         })
         .then(function(data) {
           console.log("Invitation response:", data);
-          alert("Invitation sent successfully!");
-          // Set the flag so the invitation flow does not re-run.
-          sessionStorage.setItem("invitationSent", "true");
-          // Attempt to close the window if it was opened as a popup.
-          if (window.opener) {
-            window.close();
+          if (data.success === true) {
+            alert("Invitation sent successfully!");
+            sessionStorage.setItem("invitationSent", "true");
+            // If opened as a popup, close the window:
+            if (window.opener) {
+              window.close();
+            } else {
+              // Otherwise, redirect to a confirmation page (if available)
+              window.location.href = "thankyou.html";
+            }
           } else {
-            // Otherwise, redirect to a 'thank you' or confirmation page.
-            window.location.href = "thankyou.html";
+            // If success is not true, output the returned error details.
+            alert("Invitation failed: " + JSON.stringify(data));
           }
         })
         .catch(function(err) {
@@ -101,15 +108,15 @@
         });
       }
 
-      // Main function: Initiates the OAuth flow and sends the invitation.
+      // Main function: Initiate OAuth and send invitation.
       function init() {
         var token = getTokenFromHash();
         if (token) {
-          // Remove the hash from the URL for neatness.
+          // Remove the token hash from the URL.
           history.replaceState(null, "", window.location.pathname + window.location.search);
           sendInvitation(token);
         } else {
-          // Trigger OAuth sign-in.
+          // If no token, trigger the OAuth sign-in flow.
           esriId.getCredential(info.portalUrl + "/sharing/rest")
           .then(function(credential) {
             sendInvitation(credential.token);
@@ -121,7 +128,6 @@
         }
       }
 
-      // Start the process when the page loads.
       window.onload = init;
     });
   </script>
