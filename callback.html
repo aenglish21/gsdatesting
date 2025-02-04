@@ -3,12 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <title>OAuth Callback</title>
+  <script>
+    // When this page loads, extract the token from the URL fragment.
+    window.onload = function() {
+      // Get the URL fragment (after the '#' symbol).
+      var hash = window.location.hash.substr(1); // Remove the leading '#'
+      var result = {};
+      hash.split("&").forEach(function(item) {
+          var parts = item.split("=");
+          result[parts[0]] = decodeURIComponent(parts[1]);
+      });
+
+      // Check if an access token exists.
+      if (result.access_token) {
+        // Optionally, store the token (for example in local storage).
+        localStorage.setItem("arcgis_token", result.access_token);
+        // You can also process other parameters (like expires_in, username, etc.) as needed.
+
+        // Redirect back to the main page (or another page in your app).
+        window.location.href = "/";
+      } else {
+        document.body.innerHTML = "<p>Error: No access token found in the URL.</p>";
+      }
+    };
+  </script>
 </head>
 <body>
-  <script>
-    // Optionally, process any parameters or simply redirect to your main page.
-    window.location.href = "/";
-  </script>
-  <p>If you are not redirected automatically, click <a href="/">here</a>.</p>
+  <h1>OAuth Callback</h1>
+  <p>Processing authentication...</p>
 </body>
 </html>

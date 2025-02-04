@@ -10,71 +10,75 @@
     require(["esri/identity/OAuthInfo", "esri/identity/IdentityManager"], function(OAuthInfo, esriId) {
       
       // Configure OAuth information.
-      // Replace 'zqp645HsoVg1KwjM' with your app ID and update redirectUri to match your registered URI.
+      // Replace the appId with your ArcGIS application's client ID.
       var info = new OAuthInfo({
-        appId: "zqp645HsoVg1KwjM",
+        appId: "zqp645HsoVg1KwjM", 
         popup: true, // Use a popup for sign-in.
         portalUrl: "https://www.arcgis.com",
-        // Set redirectUri to the callback page you've registered on ArcGIS Developer Portal.
-        redirectUri: "https://polite-smoke-095a5041e.4.azurestaticapps.net/callback.html"
+        // Set redirectUri to the callback page you registered in your ArcGIS app configuration.
+        redirectUri: "https://your-domain.azurestaticapps.net/oauth-callback.html"
       });
       esriId.registerOAuthInfos([info]);
 
-      // This function is called when the user clicks the button.
+      // This function will be called when the user clicks the button.
       window.sendInvite = function() {
-        // Retrieve credentials. This triggers the OAuth sign-in flow if needed.
+        // Retrieve credentials. This triggers the OAuth sign-in flow if the user is not signed in.
         esriId.getCredential(info.portalUrl + "/sharing/rest")
           .then(function(credential) {
             var token = credential.token;
-            
-            // URL for inviting a user.
-            var inviteUrl = "https://cap-gis.maps.arcgis.com/sharing/rest/portals/self/invite";
-            
-            // Invitation payload.
-            var invitation = {
-              invitations: [{
-                firstname: "Gannon",
-                lastname: "English",
-                email: "addison.english@flwg.cap.gov",
-                role: "org_publisher",
-                userLicenseTypeId: "creatorLicenseId",
-                provider: "arcgis",
-                userType: "namedUser"
-              }]
-            };
-            
-            // Build URL-encoded parameters.
-            var params = new URLSearchParams();
-            params.append("invitationList", JSON.stringify(invitation));
-            params.append("message", "Welcome to the organization!");
-            params.append("f", "json");
-            params.append("token", token);
-            
-            // Send the POST request using fetch.
-            fetch(inviteUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-              },
-              body: params.toString()
-            })
-            .then(function(response) { 
-              return response.json(); 
-            })
-            .then(function(data) {
-              console.log("Invite response:", data);
-              alert("Invite response: " + JSON.stringify(data));
-            })
-            .catch(function(err) {
-              console.error("Error sending invite:", err);
-              alert("Error sending invite: " + err);
-            });
+            // Now use the token to send the invitation.
+            sendInvitation(token);
           })
           .catch(function(err) {
             console.error("Error retrieving credential:", err);
             alert("Error retrieving credential: " + err);
           });
       };
+
+      // Function to send the invitation.
+      function sendInvitation(token) {
+        var inviteUrl = "https://cap-gis.maps.arcgis.com/sharing/rest/portals/self/invite";
+        
+        // Invitation payload.
+        var invitation = {
+          invitations: [{
+            firstname: "Gannon",
+            lastname: "English",
+            email: "addison.english@flwg.cap.gov",
+            role: "org_publisher",
+            userLicenseTypeId: "creatorLicenseId",
+            provider: "arcgis",
+            userType: "namedUser"
+          }]
+        };
+
+        // Build URL-encoded parameters.
+        var params = new URLSearchParams();
+        params.append("invitationList", JSON.stringify(invitation));
+        params.append("message", "Welcome to the organization!");
+        params.append("f", "json");
+        params.append("token", token);
+
+        // Send the POST request using fetch.
+        fetch(inviteUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: params.toString()
+        })
+        .then(function(response) { 
+          return response.json(); 
+        })
+        .then(function(data) {
+          console.log("Invite response:", data);
+          alert("Invite response: " + JSON.stringify(data));
+        })
+        .catch(function(err) {
+          console.error("Error sending invite:", err);
+          alert("Error sending invite: " + err);
+        });
+      }
     });
   </script>
 </head>
