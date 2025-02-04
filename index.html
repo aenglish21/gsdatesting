@@ -2,51 +2,76 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Invite User via ArcGIS OAuth</title>
+  <title>OAuth Callback & Invite</title>
   <!-- Load the ArcGIS API for JavaScript -->
   <script src="https://js.arcgis.com/4.26/"></script>
   <script>
     // Use the ArcGIS API's AMD loader to bring in OAuth and IdentityManager modules.
-    require(["esri/identity/OAuthInfo", "esri/identity/IdentityManager"], function(OAuthInfo, esriId) {
+    require([
+      "esri/identity/OAuthInfo",
+      "esri/identity/IdentityManager"
+    ], function(OAuthInfo, esriId) {
       
       // Configure OAuth information.
       // Replace the appId with your ArcGIS application's client ID.
+      // The redirectUri should be the full URL to this page.
       var info = new OAuthInfo({
-        appId: "NdDfitFYbAyF6ETt", 
-        popup: true, // Use a popup for sign-in.
+        appId: "zqp645HsoVg1KwjM", 
+        popup: true, 
         portalUrl: "https://www.arcgis.com",
-        // Set redirectUri to the callback page you registered in your ArcGIS app configuration.
-        redirectUri: "https://polite-smoke-095a5041e.4.azurestaticapps.net/oauth-callback.html"
+        redirectUri: window.location.origin + window.location.pathname  // e.g., https://your-app.azurestaticapps.net/oauth-callback.html
       });
       esriId.registerOAuthInfos([info]);
 
-      // This function will be called when the user clicks the button.
-      window.sendInvite = function() {
-        // Retrieve credentials. This triggers the OAuth sign-in flow if the user is not signed in.
-        esriId.getCredential(info.portalUrl + "/sharing/rest")
-          .then(function(credential) {
-            var token = credential.token;
-            // Now use the token to send the invitation.
-            sendInvitation(token);
-          })
-          .catch(function(err) {
-            console.error("Error retrieving credential:", err);
-            alert("Error retrieving credential: " + err);
-          });
-      };
+      // Helper: Parse query parameters (from the URL search string)
+      function getQueryParams() {
+        var params = new URLSearchParams(window.location.search);
+        return {
+          firstname: params.get('firstname'),
+          lastname: params.get('lastname'),
+          email: params.get('email'),
+          role: params.get('role'),
+          userLicenseTypeId: params.get('userLicenseTypeId')
+        };
+      }
 
-      // Function to send the invitation.
+      // Main function: Called when the page loads.
+      function init() {
+        var hash = window.location.hash;
+        if (hash && hash.indexOf("access_token") !== -1) {
+          // Access token is in the URL fragment.
+          var paramsFragment = new URLSearchParams(hash.substr(1)); // remove the leading '#'
+          var token = paramsFragment.get("access_token");
+          if (token) {
+            sendInvitation(token);
+          } else {
+            displayError("Access token not found in URL.");
+          }
+        } else {
+          // No token in URL; trigger the OAuth login flow.
+          esriId.getCredential(info.portalUrl + "/sharing/rest")
+            .then(function(credential) {
+              sendInvitation(credential.token);
+            })
+            .catch(function(err) {
+              displayError("Error retrieving credential: " + err);
+            });
+        }
+      }
+
+      // Function: Sends the invitation request using the token and query parameters.
       function sendInvitation(token) {
         var inviteUrl = "https://cap-gis.maps.arcgis.com/sharing/rest/portals/self/invite";
-        
-        // Invitation payload.
+        var userParams = getQueryParams();
+
+        // Build the invitation payload using the passed user data.
         var invitation = {
           invitations: [{
-            firstname: "Gannon",
-            lastname: "English",
-            email: "addison.english@flwg.cap.gov",
-            role: "org_publisher",
-            userLicenseTypeId: "creatorLicenseId",
+            firstname: userParams.firstname || "DefaultFirstName",
+            lastname: userParams.lastname || "DefaultLastName",
+            email: userParams.email || "default@example.com",
+            role: userParams.role || "org_user",
+            userLicenseTypeId: userParams.userLicenseTypeId || "",
             provider: "arcgis",
             userType: "namedUser"
           }]
@@ -59,32 +84,41 @@
         params.append("f", "json");
         params.append("token", token);
 
-        // Send the POST request using fetch.
+        // Send the invitation using a POST request.
         fetch(inviteUrl, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded"
-          },
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: params.toString()
         })
-        .then(function(response) { 
-          return response.json(); 
+        .then(function(response) {
+          return response.json();
         })
         .then(function(data) {
           console.log("Invite response:", data);
-          alert("Invite response: " + JSON.stringify(data));
+          alert("Invitation sent successfully.");
+          // After a short delay, close the window (works if opened via script/pop-up)
+          setTimeout(function() {
+            window.close();
+          }, 1000);
         })
         .catch(function(err) {
-          console.error("Error sending invite:", err);
-          alert("Error sending invite: " + err);
+          displayError("Error sending invite: " + err);
         });
       }
+
+      // Helper: Display an error message on the page.
+      function displayError(message) {
+        console.error(message);
+        document.body.innerHTML = "<h2>Error</h2><p>" + message + "</p>";
+      }
+
+      // Start the flow when the page loads.
+      window.onload = init;
     });
   </script>
 </head>
 <body>
-  <h1>Invite a User via OAuth</h1>
-  <!-- Clicking this button triggers the OAuth sign-in (if needed) and then sends the invite. -->
-  <button onclick="sendInvite()">Sign In & Send Invite</button>
+  <h1>Processing Authentication & Invitation...</h1>
+  <p>Please wait while we authenticate and send the invitation.</p>
 </body>
 </html>
