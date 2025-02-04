@@ -2,69 +2,52 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OAuth Callback & Invite</title>
+  <title>OAuth Invite Function</title>
   <!-- Load the ArcGIS API for JavaScript -->
   <script src="https://js.arcgis.com/4.26/"></script>
   <script>
     // Use the ArcGIS API's AMD loader to bring in OAuth and IdentityManager modules.
-    require([
-      "esri/identity/OAuthInfo",
-      "esri/identity/IdentityManager"
-    ], function(OAuthInfo, esriId) {
-      
+    require(["esri/identity/OAuthInfo", "esri/identity/IdentityManager"], function(OAuthInfo, esriId) {
+
       // Configure OAuth information.
-      // Replace the appId with your ArcGIS application's client ID.
-      // The redirectUri should be the full URL to this page.
+      // Replace "zqp645HsoVg1KwjM" with your registered ArcGIS application's client ID.
+      // The redirectUri is set to the current page URL (without any hash fragments).
       var info = new OAuthInfo({
-        appId: "zqp645HsoVg1KwjM", 
+        appId: "zqp645HsoVg1KwjM",
         popup: true, 
         portalUrl: "https://www.arcgis.com",
-        redirectUri: window.location.origin + window.location.pathname  // e.g., https://your-app.azurestaticapps.net/oauth-callback.html
+        redirectUri: window.location.href.split("#")[0] // e.g., https://your-app.azurestaticapps.net/index.html
       });
       esriId.registerOAuthInfos([info]);
 
-      // Helper: Parse query parameters (from the URL search string)
+      // Helper function: Extract query parameters from the URL.
       function getQueryParams() {
         var params = new URLSearchParams(window.location.search);
         return {
-          firstname: params.get('firstname'),
-          lastname: params.get('lastname'),
-          email: params.get('email'),
-          role: params.get('role'),
-          userLicenseTypeId: params.get('userLicenseTypeId')
+          firstname: params.get("firstname"),
+          lastname: params.get("lastname"),
+          email: params.get("email"),
+          role: params.get("role"),
+          userLicenseTypeId: params.get("userLicenseTypeId")
         };
       }
 
-      // Main function: Called when the page loads.
-      function init() {
-        var hash = window.location.hash;
-        if (hash && hash.indexOf("access_token") !== -1) {
-          // Access token is in the URL fragment.
-          var paramsFragment = new URLSearchParams(hash.substr(1)); // remove the leading '#'
-          var token = paramsFragment.get("access_token");
-          if (token) {
-            sendInvitation(token);
-          } else {
-            displayError("Access token not found in URL.");
-          }
-        } else {
-          // No token in URL; trigger the OAuth login flow.
-          esriId.getCredential(info.portalUrl + "/sharing/rest")
-            .then(function(credential) {
-              sendInvitation(credential.token);
-            })
-            .catch(function(err) {
-              displayError("Error retrieving credential: " + err);
-            });
+      // Helper function: Extract an OAuth token from the URL hash, if present.
+      function getTokenFromHash() {
+        if (window.location.hash && window.location.hash.indexOf("access_token") !== -1) {
+          var hash = window.location.hash.substr(1); // remove the leading "#"
+          var params = new URLSearchParams(hash);
+          return params.get("access_token");
         }
+        return null;
       }
 
-      // Function: Sends the invitation request using the token and query parameters.
+      // Function: Send an invitation using the provided OAuth token.
       function sendInvitation(token) {
         var inviteUrl = "https://cap-gis.maps.arcgis.com/sharing/rest/portals/self/invite";
         var userParams = getQueryParams();
 
-        // Build the invitation payload using the passed user data.
+        // Build the invitation payload using query parameters.
         var invitation = {
           invitations: [{
             firstname: userParams.firstname || "DefaultFirstName",
@@ -77,48 +60,66 @@
           }]
         };
 
-        // Build URL-encoded parameters.
+        // Build URL-encoded parameters for the POST request.
         var params = new URLSearchParams();
         params.append("invitationList", JSON.stringify(invitation));
         params.append("message", "Welcome to the organization!");
         params.append("f", "json");
         params.append("token", token);
 
-        // Send the invitation using a POST request.
+        // Send the POST request using fetch.
         fetch(inviteUrl, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: params.toString()
         })
-        .then(function(response) {
-          return response.json();
+        .then(function(response) { 
+          return response.json(); 
         })
         .then(function(data) {
-          console.log("Invite response:", data);
-          alert("Invitation sent successfully.");
-          // After a short delay, close the window (works if opened via script/pop-up)
+          console.log("Invitation response:", data);
+          alert("Invitation sent successfully!");
+          // Optionally, if this page is opened as a popup, close it:
           setTimeout(function() {
             window.close();
           }, 1000);
+          // Otherwise, you can redirect to another page:
+          // window.location.href = "success.html";
         })
         .catch(function(err) {
-          displayError("Error sending invite: " + err);
+          console.error("Error sending invitation:", err);
+          alert("Error sending invitation: " + err);
         });
       }
 
-      // Helper: Display an error message on the page.
-      function displayError(message) {
-        console.error(message);
-        document.body.innerHTML = "<h2>Error</h2><p>" + message + "</p>";
+      // Main function: Initializes OAuth and sends the invitation.
+      function init() {
+        // Check if an OAuth token is present in the URL hash.
+        var token = getTokenFromHash();
+        if (token) {
+          // Remove the hash from the URL (for neatness).
+          history.replaceState(null, "", window.location.pathname + window.location.search);
+          sendInvitation(token);
+        } else {
+          // If no token is found, trigger OAuth sign-in.
+          esriId.getCredential(info.portalUrl + "/sharing/rest")
+          .then(function(credential) {
+            sendInvitation(credential.token);
+          })
+          .catch(function(err) {
+            console.error("Error retrieving credential:", err);
+            alert("Error retrieving credential: " + err);
+          });
+        }
       }
 
-      // Start the flow when the page loads.
+      // Start the process when the page loads.
       window.onload = init;
     });
   </script>
 </head>
 <body>
-  <h1>Processing Authentication & Invitation...</h1>
+  <h1>Processing OAuth & Invitation...</h1>
   <p>Please wait while we authenticate and send the invitation.</p>
 </body>
 </html>
