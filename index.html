@@ -9,17 +9,20 @@
     // Use the ArcGIS API's AMD loader to bring in OAuth and IdentityManager modules.
     require(["esri/identity/OAuthInfo", "esri/identity/IdentityManager"], function(OAuthInfo, esriId) {
       
-      // Configure OAuth information. Replace 'YOUR_APP_ID' with your application's client ID.
+      // Configure OAuth information.
+      // Replace 'zqp645HsoVg1KwjM' with your app ID and update redirectUri to match your registered URI.
       var info = new OAuthInfo({
         appId: "zqp645HsoVg1KwjM",
         popup: true, // Use a popup for sign-in.
-        portalUrl: "https://www.arcgis.com"  // Change if you're using a different portal.
+        portalUrl: "https://www.arcgis.com",
+        // Set redirectUri to the callback page you've registered on ArcGIS Developer Portal.
+        redirectUri: "https://your-app-name.azurestaticapps.net/callback.html"
       });
       esriId.registerOAuthInfos([info]);
 
-      // This function will be called when the user clicks the button.
+      // This function is called when the user clicks the button.
       window.sendInvite = function() {
-        // Retrieve credentials. This triggers the OAuth sign-in flow if the user is not signed in.
+        // Retrieve credentials. This triggers the OAuth sign-in flow if needed.
         esriId.getCredential(info.portalUrl + "/sharing/rest")
           .then(function(credential) {
             var token = credential.token;
